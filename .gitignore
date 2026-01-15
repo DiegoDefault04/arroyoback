@@ -1,0 +1,76 @@
+# =========================
+# Python
+# =========================
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+*.log
+
+# =========================
+# Django
+# =========================
+*.sqlite3
+db.sqlite3
+*.log
+local_settings.py
+settings.py  # si tienes secretos, opcional
+*/migrations/*.pyc
+*/migrations/__pycache__/
+
+# =========================
+# Virtual environments
+# =========================
+venv/
+.env/
+ENV/
+env/
+.venv/
+.prueba2/
+
+# =========================
+# IDEs
+# =========================
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Static / media (si quieres)
+# =========================
+staticfiles/
+media/
+
+# =========================
+# Coverage / testing
+# =========================
+.coverage
+htmlcov/
+.tox/
+.pytest_cache/
+nosetests.xml
+coverage.xml
+
+# =========================
+# PyInstaller
+# =========================
+*.manifest
+*.spec
+
+# =========================
+# Docker (si aplica)
+# =========================
+docker-compose.override.yml

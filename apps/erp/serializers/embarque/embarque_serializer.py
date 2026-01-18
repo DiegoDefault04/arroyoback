@@ -246,7 +246,8 @@ class EmbarqueMiniSerializer(serializers.ModelSerializer):
     encargado_id = serializers.IntegerField(source='encargado.id', read_only=True, allow_null=True)
     encargado_nombre = serializers.CharField(source='encargado.full_name', read_only=True, allow_null=True)
     created_at = serializers.DateTimeField(format="%Y-%m-%d %H:%M:%S", read_only=True)
-    
+    condicion_pago = serializers.SerializerMethodField()
+
     class Meta:
         model = EmbarqueReparto
         fields = [
@@ -261,8 +262,31 @@ class EmbarqueMiniSerializer(serializers.ModelSerializer):
             'ruta_codigo',
             'encargado_id',
             'encargado_nombre',
-        ]
+            'condicion_pago',   # 👈 AGREGA AQUÍ
 
+        ]
+    def get_condicion_pago(self, obj):
+        """
+        Devuelve:
+        - CONTADO
+        - CRÉDITO
+        - MIXTO
+        """
+        condiciones = (
+            obj.ventas
+            .values_list('condicion_pago', flat=True)
+            .distinct()
+        )
+
+        if not condiciones:
+            return None
+
+        condiciones = list(condiciones)
+
+        if len(condiciones) == 1:
+            return condiciones[0]
+
+        return 'MIXTO'
 
 class LoteProductoEmbarqueDetailSerializer(serializers.Serializer):
     """Serializer para mostrar lotes de productos en embarque"""

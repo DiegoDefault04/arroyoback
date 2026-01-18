@@ -635,7 +635,14 @@ class OrdenCompra(BaseModel):
         #(FINALIZADA_DIFERIDO, FINALIZADA_DIFERIDO),
     ]
     proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name="ordenes_compra", verbose_name="Proveedor")
-    condicion_pago = models.CharField(max_length=50, verbose_name="Condición de Pago", blank=True, null=True, default=CondicionPago.CONDICION_CONTADO)
+    condicion_pago = models.CharField(
+        max_length=50,
+        choices=CondicionPago.CONDICIONES_LIST,
+        default=CondicionPago.CONDICION_CONTADO,
+        null=False,
+        blank=False,
+        verbose_name="Condición de Pago"
+    )
     codigo = models.CharField(max_length=20, unique=True, blank=True, null=True, verbose_name="Folio")
     estado = models.CharField(max_length=30, choices=ESTADO_ORDEN_COMPRA_CHOICES, default=SOLICITUD, verbose_name="Estado")
     #total = models.DecimalField(max_digits=10, decimal_places=2, verbose_name="Total")
@@ -794,7 +801,14 @@ class Compra(BaseModel):
         #(ALMACEN, ALMACEN),
 
     ]
-    condicion_pago = models.CharField(max_length=50, verbose_name="Condición de Pago", blank=True, null=True, default=CondicionPago.CONDICION_CONTADO)
+    condicion_pago = models.CharField(
+        max_length=50,
+        choices=CondicionPago.CONDICIONES_LIST,
+        default=CondicionPago.CONDICION_CONTADO,
+        null=False,
+        blank=False,
+        verbose_name="Condición de Pago"
+    )
     orden_compra = models.ForeignKey(OrdenCompra, on_delete=models.SET_NULL, blank=True, null=True, related_name="compras", verbose_name="Orden de Compra")
     codigo = models.CharField(max_length=20, unique=True, blank=True, null=True, verbose_name="Folio")
     proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name="compras", verbose_name="Proveedor")
@@ -821,15 +835,15 @@ class Compra(BaseModel):
     
     def save(self, *args, **kwargs):
         self.nota = (self.nota or "").strip()
-        almacen = Almacen.objects.filter(tipo=Almacen.TIPO_VIRTUAL).first()
-        self.almacen_virtual = almacen if almacen else self.almacen_virtual
-        # Si no hay código, genera uno automáticamente
-        if not self.codigo:
-            super().save(*args, **kwargs)
-            self.codigo = self.generar_codigo()
-            super().save(update_fields=["codigo"])
-            return
+
+        # SOLO AL CREAR LA COMPRA
+        if self.pk is None and self.orden_compra:
+            self.condicion_pago = self.orden_compra.condicion_pago
+
         super().save(*args, **kwargs)
+
+
+
 
 class CompraDetalle(models.Model):
     class Meta:
@@ -925,7 +939,14 @@ class Venta(BaseModel):
     is_total_cargado = models.BooleanField(default=False, verbose_name="Total Cargado", help_text="Indica si el total de mercancia en la preventa ya fue cargada al almacen de su ruta fue ingresado en su totalidad")
     is_entregado = models.BooleanField(default=False, verbose_name="Entregado", help_text="Indica si la venta ya fue entregada al cliente")
     total = models.DecimalField(max_digits=25, decimal_places=5, verbose_name="Total")
-    condicion_pago = models.CharField(max_length=50, verbose_name="Condición de Pago", blank=True, null=True, default=CondicionPago.CONDICION_CONTADO,choices=CondicionPago.CONDICIONES_LIST)
+    condicion_pago = models.CharField(
+        max_length=50,
+        choices=CondicionPago.CONDICIONES_LIST,
+        default=CondicionPago.CONDICION_CONTADO,
+        null=False,
+        blank=False,
+        verbose_name="Condición de Pago"
+    )
     vendedor = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name="ventas_vendedor", verbose_name="Vendedor Asignado",default=None)
     total_pagado = models.DecimalField(max_digits=25, decimal_places=5, verbose_name="Total Pagado", default=0.00)
     ya_terminada = models.BooleanField(default=False, verbose_name="Ya Terminada", help_text="Indica si la venta ya fue finalizada")
@@ -1004,7 +1025,10 @@ class Venta(BaseModel):
             self.ya_terminada = True
         
          # Verificar si el adeudo es cero o negativo para marcar como terminada
-        
+        # 🔑 Si ya no hay adeudo, es CONTADO
+        if float(self.adeudo()) <= 0:
+            self.condicion_pago = CondicionPago.CONDICION_CONTADO
+
         if float(self.adeudo()) <= 0.0:
             self.ya_terminada = True
         super().save(*args, **kwargs)

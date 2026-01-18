@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'drf_yasg',
     'drf_spectacular'
 ]
+default_app_config = 'apps.inventario.apps.InventarioConfig'
 
 MY_APPS =[
     'apps.logger',

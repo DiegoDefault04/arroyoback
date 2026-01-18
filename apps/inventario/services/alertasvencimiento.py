@@ -1,5 +1,8 @@
 from datetime import date, timedelta
+from django.db.models import Q
 from apps.inventario.models import Producto
+from apps.erp.models import Notificacion
+from apps.usuarios.models import Usuario
 
 
 def evaluar_vencimiento(fecha_vencimiento, dias_alerta=3):
@@ -19,6 +22,16 @@ def productos_por_vencer(dias_alerta=3):
 
     resultado = []
 
+    # 🔔 usuario que recibirá la notificación (MISMO PATRÓN QUE YA USAS)
+    usuario_compras = Usuario.objects.filter(
+        is_active=True
+    ).filter(
+        Q(groups__name__in=['Compras']) |
+        Q(user_permissions__codename='can_create_orden_compra')
+    ).first()
+
+    user_id = usuario_compras.id if usuario_compras else 1
+
     for producto in productos:
         fecha_vencimiento = (
             producto.created_at + timedelta(hours=producto.horas_caducidad)
@@ -29,6 +42,27 @@ def productos_por_vencer(dias_alerta=3):
         )
 
         if estado != "vigente":
+            # 📌 evitar notificaciones duplicadas
+            existe_notificacion = Notificacion.objects.filter(
+                titulo="⚠️ Producto por vencer",
+                usuario_id=user_id,
+                mensaje__icontains=f"ID:{producto.id}"
+            ).exists()
+
+            if estado == "por_vencer" and not existe_notificacion:
+                Notificacion.objects.create(
+                    tipo=Notificacion.TIPO_MENSAJE,
+                    titulo="⚠️ Producto por vencer",
+                    mensaje=(
+                        f"ID:{producto.id}\n"
+                        f"Producto: {producto.nombre}\n"
+                        f"Fecha de vencimiento: {fecha_vencimiento}\n"
+                        f"Días restantes: {dias_restantes}\n\n"
+                        "Por favor, revisa el inventario."
+                    ),
+                    usuario_id=user_id
+                )
+
             resultado.append({
                 "id": producto.id,
                 "nombre": producto.nombre,

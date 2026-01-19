@@ -668,10 +668,20 @@ class CompraSerializer(BaseSerializer):
         Crear compra con sus detalles y pagos
         """
         orden_compra = validated_data.get('orden_compra')
-        #almacen_virtual = Almacen.objects.filter(tipo=Almacen.TIPO_COMPRA).first()
-        #if not almacen_virtual:
-        #    raise serializers.ValidationError("No se encontró un almacén compra para la compra.")
-        #validated_data['almacen_virtual'] = almacen_virtual
+            # ✅ ASIGNAR ALMACÉN VIRTUAL POR DEFECTO
+        # ✅ ALMACÉN VIRTUAL POR DEFECTO: CEDIS
+        if not validated_data.get('almacen_virtual'):
+            almacen_virtual = Almacen.objects.filter(
+                is_cedis=True,
+                status_model=BaseModel.STATUS_MODEL_ACTIVE
+            ).first()
+
+            if not almacen_virtual:
+                raise serializers.ValidationError(
+                    "No existe un almacén CEDIS activo para asignar a la compra."
+                )
+
+            validated_data['almacen_virtual'] = almacen_virtual
 
 
         request = self.context.get('request')

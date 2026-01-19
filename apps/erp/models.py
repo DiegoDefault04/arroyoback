@@ -836,11 +836,29 @@ class Compra(BaseModel):
     def save(self, *args, **kwargs):
         self.nota = (self.nota or "").strip()
 
-        # SOLO AL CREAR LA COMPRA
-        if self.pk is None and self.orden_compra:
-            self.condicion_pago = self.orden_compra.condicion_pago
+        creando = self.pk is None
+
+        # 🔹 Al crear la compra
+        if creando:
+            # Copiar condición de pago desde orden de compra
+            if self.orden_compra:
+                self.condicion_pago = self.orden_compra.condicion_pago
+
+        # 🔹 Asignar código si viene NULL
+        if not self.codigo:
+            if self.orden_compra and self.orden_compra.codigo:
+                # Prioridad 1: código de orden de compra
+                self.codigo = self.orden_compra.codigo
+            else:
+                # Prioridad 2: generar código propio
+                # Primero guardar para obtener PK
+                super().save(*args, **kwargs)
+                self.codigo = self.generar_codigo()
+                super().save(update_fields=["codigo"])
+                return
 
         super().save(*args, **kwargs)
+
 
 
 

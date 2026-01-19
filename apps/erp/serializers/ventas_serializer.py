@@ -175,7 +175,7 @@ class VentaMiniSerializer(BaseSerializer):
     ruta_nombre = serializers.SerializerMethodField()
     total_detalles = serializers.IntegerField(source='detalles.count', read_only=True)
     origen = serializers.CharField(source='almacen.nombre', read_only=True)
-    is_terminada = serializers.BooleanField(source='ya_terminada', read_only=True)
+    ya_terminada = serializers.BooleanField(source='ya_terminada', read_only=True)
 
     class Meta:
         model = Venta

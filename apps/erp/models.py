@@ -967,7 +967,7 @@ class Venta(BaseModel):
     )
     vendedor = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name="ventas_vendedor", verbose_name="Vendedor Asignado",default=None)
     total_pagado = models.DecimalField(max_digits=25, decimal_places=5, verbose_name="Total Pagado", default=0.00)
-    is_terminada = models.BooleanField(default=False, verbose_name="Ya Terminada", help_text="Indica si la venta ya fue finalizada")
+    ya_terminada = models.BooleanField(default=False, verbose_name="Ya Terminada", help_text="Indica si la venta ya fue finalizada")
     ignorada = models.BooleanField(default=False, verbose_name="Venta Ignorada", help_text="Indica si la venta fue ignorada en el sistema para cierre")
     cambio = models.DecimalField(max_digits=25, decimal_places=5, verbose_name="Cambio Entregado", default=0.00)
     

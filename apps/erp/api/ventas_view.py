@@ -164,9 +164,9 @@ class VentaViewSet(viewsets.ModelViewSet):
         is_terminada = request.query_params.get('is_terminada', None)
         if is_terminada is not None:
             if is_terminada.lower() in ['true', '1']:
-                queryset = queryset.filter(ya_terminada=True)
+                queryset = queryset.filter(is_terminada=True)
             elif is_terminada.lower() in ['false', '0']:
-                queryset = queryset.filter(ya_terminada=False)
+                queryset = queryset.filter(is_terminada=False)
 
         # Filtros adicionales
         fase = request.query_params.get('fase', None)

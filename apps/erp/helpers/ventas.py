@@ -5,10 +5,10 @@ from django.db.models import Sum, F
 from django.db import transaction
 
 def main_crearmovomientos_venta(model_venta=None, data_detalles=None, user=None):
-    almacen = model_venta.almacen #ALMACEN DE ORIGEN DE LA VENTA
+    almacen = model_venta.almacen
     almacen_destino = help_buscar_almacen_destino(model_venta=model_venta)
-    #print(f"[HELP VENTAS] Almacén origen: {almacen.id} - Almacén destino: {almacen_destino.id if almacen_destino else 'N/A'}")
-    # Agrupar productos y sumar cantidades
+
+    # Agrupar productos
     items_productos = []
     for detalle in data_detalles:
         producto = detalle.get('producto')
@@ -16,14 +16,12 @@ def main_crearmovomientos_venta(model_venta=None, data_detalles=None, user=None)
         precio_unitario = detalle.get('precio_unitario', 0)
 
         if producto:
-            # Buscar si ya existe el producto
-            producto_existente = next(
-                (item for item in items_productos if item['producto_id'] == producto.id), 
+            existente = next(
+                (item for item in items_productos if item['producto_id'] == producto.id),
                 None
             )
-            
-            if producto_existente:
-                producto_existente['cantidad'] += cantidad
+            if existente:
+                existente['cantidad'] += cantidad
             else:
                 items_productos.append({
                     'producto_id': producto.id,
@@ -31,28 +29,24 @@ def main_crearmovomientos_venta(model_venta=None, data_detalles=None, user=None)
                     'precio_unitario': precio_unitario,
                 })
 
-    # Procesar según fase
     FASE = model_venta.fase
-    
-    
     productos_sin_stock = []
     productos_con_stock = []
-    
+
+    # Validar stock
     for item in items_productos:
         producto = item['producto_id']
         cantidad_requerida = item['cantidad']
-        
-        # Verificar stock disponible
+
         cantidad_producto = LoteInventario.objects.filter(
-            producto_id=producto, 
-            cantidad__gt=0, 
+            producto_id=producto,
+            cantidad__gt=0,
             almacen=almacen
         ).aggregate(total_stock=Sum('cantidad'))
 
-        #print(f"[STOCK] Producto {producto}: Requerido={cantidad_requerida}, Disponible={cantidad_producto['total_stock'] or 0}")
         stock_disponible = cantidad_producto['total_stock'] or 0
         diferencia = float(stock_disponible) - float(cantidad_requerida)
-        
+
         if diferencia >= 0:
             productos_con_stock.append(item)
         else:
@@ -60,45 +54,45 @@ def main_crearmovomientos_venta(model_venta=None, data_detalles=None, user=None)
                 'producto_id': producto,
                 'cantidad_requerida': cantidad_requerida,
                 'cantidad_disponible': stock_disponible,
-                'faltante': abs(diferencia)  
+                'faltante': abs(diferencia)
             })
-            
-    # Solo afectar si hay productos con stock
+
+    # 🚫 PREVENTA: NO tocar inventario
+    if FASE == Venta.FASE_PRE_VENTA:
+        if productos_sin_stock:
+            model_venta.falta_inventario = True
+            model_venta.save(update_fields=['falta_inventario'])
+
+            for producto in productos_sin_stock:
+                ProductosSolicitud.objects.create(
+                    producto_id=producto['producto_id'],
+                    cantidad=producto['faltante'],
+                    almacen_id=almacen.id,
+                    motivo=ProductosSolicitud.MOTIVO_PREVENTA,
+                    created_by_id=user.id if user else None
+                )
+        return  # ⬅️ salida temprana
+
+    # ✅ SOLO COMANDA / TERMINADA afectan inventario
     if productos_con_stock:
-        #print (f'productos con stock: {productos_con_stock}')
-        lotes_afectados, lotes_completos_cero =  afectar_lotes_inventario_venta_f_expressions(
+        lotes_afectados, lotes_completos_cero = afectar_lotes_inventario_venta_f_expressions(
             dict_productos=productos_con_stock,
             almacen=almacen,
             user_id=user.id if user else None,
             fase=FASE
         )
-       
-        #print(f"Almacen ruta embarque ID: {almacen_ruta_embarque_id}")
+
         crear_movimiento_inventario_venta(
             venta_id=model_venta.id,
             lotes_ids_en_0=lotes_completos_cero,
             lotes_afectados=lotes_afectados,
             user_id=user.id if user else None,
             fase=FASE,
-            almacen_destino_id=almacen_destino.id if almacen_destino else None,  # Almacén HELP Embarque de la ruta
+            almacen_destino_id=almacen_destino.id if almacen_destino else None,
             almacen_origen_id=almacen.id
         )
-    
-    if productos_sin_stock:
-        #AQUI AJUSTAREMOS LAS SOLICITUDES
-        model_venta.falta_inventario = True
-        model_venta.save(update_fields=['falta_inventario'])
-        #BUSCAMO EN ALAMCENES SI EXISTE ESE PRODUCTO PARA SOLICITAR TRASPASO, CASO CONTRARIO CREAMOS UNA SOLICITUD DE ABASTECIMIENTO
-        for producto in productos_sin_stock:
-            # Verificar si el producto existe en otros almacenes
-            ProductosSolicitud.objects.create(
-                producto_id=producto['producto_id'],
-                cantidad=producto['faltante'],
-                almacen_id=almacen.id,
-                motivo =ProductosSolicitud.MOTIVO_PREVENTA,
-                created_by_id=user.id if user else None
-            )
-            
+
+       
             
         
 

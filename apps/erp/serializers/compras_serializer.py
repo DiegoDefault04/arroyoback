@@ -630,11 +630,11 @@ class CompraSerializer(BaseSerializer):
         if detalles is not None and len(detalles) == 0:
             raise serializers.ValidationError("Debe incluir al menos un producto en la compra.")
         
-        if detalles:
+        #if detalles:
             # Validar que no haya productos duplicados
-            productos_ids = [detalle['producto'].id for detalle in detalles]
-            if len(productos_ids) != len(set(productos_ids)):
-                raise serializers.ValidationError("No se pueden incluir productos duplicados en la compra.")
+        #    productos_ids = [detalle['producto'].id for detalle in detalles]
+        #    if len(productos_ids) != len(set(productos_ids)):
+        #        raise serializers.ValidationError("No se pueden incluir productos duplicados en la compra.")
         
         return detalles
 

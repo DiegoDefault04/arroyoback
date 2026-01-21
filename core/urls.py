@@ -36,6 +36,13 @@ urlpatterns = [
     path('api/token/refresh/', TokenRefreshView.as_view(), name='token_refresh'),  # Refrescar token de acceso
     path('api/token/verify/', TokenVerifyView.as_view(), name='token_verify'),  # Verificar token de acceso
    
+       # ===============================
+    # 📘 DOCUMENTACIÓN API (AQUÍ)
+    # ===============================
+    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
+    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path('api/redoc/', SpectacularRedocView.as_view(url_name='schema'), name='redoc'),
+
 
     # URL de la aplicación de direcciones
     path('api/direccion/', include('apps.direccion.urls')),

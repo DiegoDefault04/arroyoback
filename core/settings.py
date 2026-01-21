@@ -169,6 +169,14 @@ SIMPLE_JWT = {
     "TOKEN_OBTAIN_SERIALIZER": "apps.base.token_jwt.MyTokenObtainPairSerializer",
 }
 
+SPECTACULAR_SETTINGS = {
+    'TITLE': 'APIS ARROYO',
+    'VERSION': '2.0',
+
+    # 🔥 Ignorar warnings y errores no críticos
+    'DISABLE_ERRORS_AND_WARNINGS': True,
+}
+
 
 
 CORS_ALLOW_ALL_ORIGINS = True

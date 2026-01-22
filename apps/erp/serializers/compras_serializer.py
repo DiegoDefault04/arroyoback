@@ -389,7 +389,8 @@ class OrdenCompraSerializer(BaseSerializer):
                     monto=monto,
                     referencia=referencia
                 )
-        
+        instance.recalcular_pagos()
+
         instance.save()
         return instance
 

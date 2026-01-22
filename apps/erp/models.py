@@ -649,7 +649,13 @@ class OrdenCompra(BaseModel):
     encargado = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name="orden_compra_encargado", verbose_name="Encargado")
     # asignado_a = models.ForeignKey(Usuario, on_delete=models.SET_NULL, null=True, blank=True, related_name="orden_compra_asignado", verbose_name="Asignado a")
 
-    
+    def recalcular_pagos(self):
+            total = sum(
+                d.cantidad * d.precio
+                for d in self.detalles.all()
+            )
+
+            self.pagos_orden_compra.update(monto=total)
     def get_total(self):
         return sum(detalle.subtotal * detalle.cantidad for detalle in self.detalles.all())
     

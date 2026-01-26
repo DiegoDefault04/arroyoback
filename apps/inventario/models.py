@@ -5,6 +5,8 @@ from apps.base.models import BaseModel
 from apps.usuarios.models import Usuario
 
 from apps.erp.models import Producto, Almacen, Rutas
+from django.db import models, transaction
+from django.core.exceptions import ValidationError
 
 
 """
@@ -269,10 +271,27 @@ class ProductosMovimiento(BaseModel):
         verbose_name_plural = "Productos en Movimientos"
 
     def save(self, *args, **kwargs):
-        """Calcular costo total automáticamente"""
-        if self.cantidad and self.costo_unitario:
-            self.costo_total = self.cantidad * self.costo_unitario
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+
+            """Calcular costo total automáticamente"""
+            if self.cantidad and self.costo_unitario:
+                self.costo_total = self.cantidad * self.costo_unitario
+            super().save(*args, **kwargs)
+            # 🚨 Si no hay lote, no podemos afectar inventario
+            if not self.lote:
+                return
+
+            # 🔥 AFECTAR INVENTARIO
+            if self.movimiento.tipo == MovimientoInventario.TIPO_SALIDA:
+                if self.lote.cantidad < self.cantidad:
+                    raise ValidationError("No hay suficiente inventario en el lote")
+
+                self.lote.cantidad -= self.cantidad
+
+            elif self.movimiento.tipo == MovimientoInventario.TIPO_ENTRADA:
+                self.lote.cantidad += self.cantidad
+
+            self.lote.save()
 
     def __str__(self):
         return f"{self.movimiento.referencia} - {self.producto.nombre} ({self.cantidad})"

@@ -15,6 +15,7 @@ from apps.base.serializer import BaseSerializer, SerializerRelatedField
 from .proveedor_serializer import ProveedorMiniSerializer
 from .productos_serializer import ProductoMiniSerializer
 from .almacen_serializer import AlmacenMiniSerializer
+from decimal import Decimal, InvalidOperation
 
 
 from apps.usuarios.serializers.usuarios import UsuarioMiniSerializer
@@ -327,6 +328,19 @@ class OrdenCompraSerializer(BaseSerializer):
             for detalle_data in detalles_data:
                 producto_id = detalle_data['producto'].id
                 cantidad = Decimal(str(detalle_data['cantidad']))
+                precio_raw = detalle_data.get('precio', None)
+
+                if precio_raw in (None, "", 0):
+                    raise serializers.ValidationError({
+                        "detalles": "Todos los productos deben incluir un precio válido al editar la orden."
+                    })
+
+                try:
+                    precio = Decimal(str(precio_raw))
+                except InvalidOperation:
+                    raise serializers.ValidationError({
+                        "detalles": f"Precio inválido para el producto {detalle_data.get('producto')}"
+                    })
                 #precio_unitario = Decimal(str(detalle_data['precio_unitario']))
                 #subtotal_calculado = cantidad * precio_unitario
                 
@@ -335,6 +349,7 @@ class OrdenCompraSerializer(BaseSerializer):
                     productos_new.append({
                         'id': producto_id,
                         'cantidad': cantidad,
+                        'precio': precio,
                         #'precio_unitario': precio_unitario,
                         #'subtotal': subtotal_calculado
                     })
@@ -345,6 +360,7 @@ class OrdenCompraSerializer(BaseSerializer):
                         model_detalle.cantidad = cantidad
                         #model_detalle.precio_unitario = precio_unitario
                         #model_detalle.subtotal = subtotal_calculado
+                        model_detalle.precio = precio
                         model_detalle.save()
                 
                 # ✅ Sumar al total todos los productos (nuevos y actualizados)
@@ -363,6 +379,7 @@ class OrdenCompraSerializer(BaseSerializer):
                     orden_compra=instance,
                     producto_id=detalle['id'],
                     cantidad=detalle['cantidad'],
+                    precio=detalle['precio'],
                     #precio_unitario=detalle['precio_unitario'],
                     #subtotal=detalle['subtotal']
                 )
@@ -389,8 +406,14 @@ class OrdenCompraSerializer(BaseSerializer):
                     monto=monto,
                     referencia=referencia
                 )
-        instance.recalcular_pagos()
+        instance.refresh_from_db()
+        instance.total = sum(
+            d.cantidad * d.precio
+            for d in instance.detalles.all()
+        )
 
+        instance.recalcular_pagos()
+        
         instance.save()
         return instance
 

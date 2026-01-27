@@ -1798,11 +1798,11 @@ class ProcesarEntradaView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
         
-        #if movimiento.fase != MovimientoInventario.FASE_PROCESO:
-        #    return Response(
-        #        {'error': f'La entrada está en fase {movimiento.fase}, no se puede procesar'},
-        #        status=status.HTTP_400_BAD_REQUEST
-        #    )
+        if movimiento.fase != MovimientoInventario.FASE_PROCESO:
+            return Response(
+                {'error': f'La entrada está en fase {movimiento.fase}, no se puede procesar'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
         
         # ========================================================
         # PROCESAR ENTRADA: AQUÍ VA TU LÓGICA PERSONALIZADA

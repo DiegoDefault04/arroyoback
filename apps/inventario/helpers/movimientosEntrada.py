@@ -4,6 +4,8 @@ from django.db import transaction
 
 
 def create_movimiento_entrada(model_movimiento,productos_con_lote, user=None,ref_base="MOV-TRASP-VIT"):
+    if model_movimiento.fase == MovimientoInventario.FASE_TERMINADA:
+        raise ValueError("Este movimiento ya fue procesado")
     model_movimento_vir = MovimientoInventario.objects.filter(referencia=f'{ref_base}-{model_movimiento.id}').first()
     almacen_destino = model_movimiento.almacen_destino
     with transaction.atomic():
@@ -16,17 +18,23 @@ def create_movimiento_entrada(model_movimiento,productos_con_lote, user=None,ref
             model_movimento_vir.updated_by = user
             model_movimento_vir.save()
             
-        movimiento_entrada = MovimientoInventario.objects.create(
-            almacen=model_movimento_vir.almacen_destino,
-            almacen_destino=almacen_destino,
-            tipo=MovimientoInventario.TIPO_ENTRADA,
-            movimiento=MovimientoInventario.ENTRADA_TRASPASO,
-            cantidad=0,
-            referencia=f'MOV-ENTRADA-{model_movimiento.id}',
-            created_by=user,
-            nota=f"Entrada por traspaso desde {model_movimiento.almacen.nombre}",
-            fase=MovimientoInventario.FASE_TERMINADA,
-        )
+        movimiento_entrada = MovimientoInventario.objects.filter(
+        referencia=f'MOV-ENTRADA-{model_movimiento.id}'
+        ).first()
+
+        if movimiento_entrada is None:
+            movimiento_entrada = MovimientoInventario.objects.create(
+                almacen=model_movimiento.almacen_destino,
+                almacen_destino=almacen_destino,
+                tipo=MovimientoInventario.TIPO_ENTRADA,
+                movimiento=MovimientoInventario.ENTRADA_TRASPASO,
+                cantidad=0,
+                referencia=f'MOV-ENTRADA-{model_movimiento.id}',
+                created_by=user,
+                nota=f"Entrada por traspaso desde {model_movimiento.almacen.nombre}",
+                fase=MovimientoInventario.FASE_TERMINADA,
+            )
+
         count_cantidad = 0
         
         lotes_incidencias = []
@@ -38,7 +46,7 @@ def create_movimiento_entrada(model_movimiento,productos_con_lote, user=None,ref
             for lote_data in lotes:
                 lote = lote_data['lote']
                 cantidad = lote_data['cantidad']
-                if lote.cantidad != cantidad:
+                if lote.cantidad < cantidad:
                     # Registrar incidencia por cantidad insuficiente en el lote
                     lotes_incidencias.append({
                         'producto': producto,
@@ -53,19 +61,29 @@ def create_movimiento_entrada(model_movimiento,productos_con_lote, user=None,ref
                 # Por ejemplo, aumentar la cantidad en el lote
                 lote.almacen = almacen_destino
                 lote.updated_by = user
-                lote.cantidad = cantidad
+                print("ANTES:", lote.cantidad)
+                lote.cantidad = 0
+                print("DESPUES:", lote.cantidad)
                 count_cantidad += cantidad
                 lote.save()
                 
-                item_vir = ProductosMovimiento.objects.create(
-                        movimiento=movimiento_entrada,
-                        producto=producto,
-                        cantidad=cantidad,  # Usar cantidad del lote
-                        lote_id=lote.id,
-                        costo_unitario=lote.costo_unitario,
-                        costo_total=cantidad * lote.costo_unitario,
-                        created_by=user
-                    )
+                item_vir, created = ProductosMovimiento.objects.get_or_create(
+                movimiento=movimiento_entrada,
+                producto=producto,
+                lote_id=lote.id,
+                defaults={
+                    "cantidad": cantidad,
+                    "costo_unitario": lote.costo_unitario,
+                    "costo_total": cantidad * lote.costo_unitario,
+                    "created_by": user
+                    }
+                )
+
+                if not created:
+                    item_vir.cantidad += cantidad
+                    item_vir.costo_total = item_vir.cantidad * item_vir.costo_unitario
+                    item_vir.save()
+
                 
         # Crear insidencia si hay lotes con diferencias
         print(lotes_incidencias)

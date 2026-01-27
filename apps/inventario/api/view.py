@@ -1118,7 +1118,7 @@ class InventarioProductoAPIView(APIView):
             producto=producto,
             status_model=BaseModel.STATUS_MODEL_ACTIVE,
             cantidad__gt=0
-        ).select_related('almacen', 'ubicacion').order_by('fecha_ingreso')
+        ).select_related('almacen', 'ubicacion')
         
         # Filtrar por almacén si se especifica
         if almacen_id:

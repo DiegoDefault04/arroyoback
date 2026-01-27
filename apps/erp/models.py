@@ -852,10 +852,6 @@ class Compra(BaseModel):
 
         # 🔹 Asignar código si viene NULL
         if not self.codigo:
-            if self.orden_compra and self.orden_compra.codigo:
-                # Prioridad 1: código de orden de compra
-                self.codigo = self.orden_compra.codigo
-            else:
                 # Prioridad 2: generar código propio
                 # Primero guardar para obtener PK
                 super().save(*args, **kwargs)

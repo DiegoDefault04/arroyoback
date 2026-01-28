@@ -180,7 +180,7 @@ class AbastecimientoService:
                 producto=producto,
                 almacen=almacen_destino,
                 ubicacion=ubicacion_rack,
-                cantidad=cantidad,
+                cantidad=0,
                 costo_unitario=costo_unitario,
                 fecha_ingreso=timezone.now(),
                 #fecha_vencimiento=fecha_vencimiento,
